@@ -1,0 +1,6 @@
+numpy
+opencv-python
+mediapipe
+Pillow
+scikit-learn
+datasets
