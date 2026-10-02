@@ -68,19 +68,37 @@ The project was developed through multiple dataset and model iterations, with th
                     │                     │
                     │  Gesture → Meme     │
                     └─────────────────────┘
+```
 
-Core Technical Approach
-1. Real-Time Video Acquisition
+---
+
+## Core Technical Approach
+
+### 1. Real-Time Video Acquisition
+
 The application continuously captures frames from the user's webcam using OpenCV.
+
 Each frame is processed through the landmark extraction pipeline before being converted into the numerical representation expected by the classifier.
+
 The pipeline is designed around real-time inference rather than offline image classification.
-2. Landmark-Based Computer Vision
+
+---
+
+### 2. Landmark-Based Computer Vision
+
 Instead of training directly on RGB pixels, MemeVision extracts semantic landmarks from the user's face and hands.
-Face
+
+#### Face
+
 MediaPipe Face Landmarker provides structured facial landmark coordinates.
-Hands
+
+#### Hands
+
 MediaPipe Hand Landmarker provides hand keypoints that encode the spatial configuration of the user's hand.
+
 The resulting representation can be viewed as:
+
+```text
 Frame
   ↓
 Face Landmarks
@@ -88,16 +106,31 @@ Face Landmarks
 Hand Landmarks
   ↓
 Structured Numerical Representation
+```
+
 This reduces the problem from high-dimensional image classification to classification over engineered numerical features.
-3. Feature Engineering
+
+---
+
+### 3. Feature Engineering
+
 The landmark coordinates are transformed into a deterministic feature vector.
+
 The project maintains an explicit feature schema through:
+
+```text
 feature_schema.py
+```
 
 while feature generation is handled by:
+
+```text
 features.py
+```
 
 This separation is important because the exact feature ordering and dimensionality must remain consistent between:
+
+```text
 Training
    ↓
 Validation
@@ -105,10 +138,17 @@ Validation
 Model Serialization
    ↓
 Inference
+```
 
 A mismatch between training and inference features can result in incorrect predictions or incompatible model input.
-4. Feature Schema
+
+---
+
+### 4. Feature Schema
+
 MemeVision treats the feature representation as an explicit interface between computer vision and machine learning.
+
+```text
 MediaPipe Output
        ↓
 Feature Extraction
@@ -116,69 +156,129 @@ Feature Extraction
 Feature Schema
        ↓
 ML Model
+```
 
 The schema provides a consistent contract for:
+
 - Feature dimensionality
 - Feature ordering
 - Landmark-derived values
 - Training/inference compatibility
+
 This makes experimentation with different model versions easier and safer.
-5. Supervised Classification
+
+---
+
+### 5. Supervised Classification
+
 The extracted feature vectors are used to train a supervised classification model.
+
 The project maintains multiple model generations:
+
+```text
 model.pkl
 model_v6.pkl
+```
 
 with corresponding training pipelines:
+
+```text
 train_v5.py
 train_v6.py
+```
 
 The trained model is serialized after training and loaded during real-time inference.
-6. Dataset Collection Pipeline
+
+---
+
+### 6. Dataset Collection Pipeline
+
 Training data is collected using:
+
+```text
 collect.py
+```
 
 The collection pipeline captures webcam samples associated with predefined gesture classes.
+
 Current classes include:
+
+```text
 thumbsup
 thumbsdown
 thinking
 shocked
 other
+```
 
 The collected samples are then prepared and validated before being used for model training.
-7. Dataset Preparation
+
+---
+
+### 7. Dataset Preparation
+
 Dataset preparation is separated from model training.
+
 The repository includes:
+
+```text
 prepare_v6.py
 dataset_stats.py
+```
 
 This allows the dataset to be inspected and transformed independently from the classifier.
+
 Dataset analysis can be used to identify:
+
 - Class distribution
 - Malformed samples
 - Missing features
 - Feature dimensionality problems
 - Inconsistencies between samples
-8. Model Training
+
+---
+
+### 8. Model Training
+
 Training is versioned rather than modifying a single training script.
+
+```text
 train_v5.py
 train_v6.py
+```
 
 This allows different feature representations, datasets, and model configurations to be evaluated without destroying previous experiments.
+
 The latest recorded validation result is:
+
+```text
 Validation Accuracy: 97.79%
+```
 
 This metric represents the validation configuration used during development and should not be interpreted as a guarantee of real-world accuracy across unseen users, environments, lighting conditions, or camera hardware.
-9. Model Versioning
+
+---
+
+### 9. Model Versioning
+
 The project intentionally maintains multiple serialized model artifacts:
+
+```text
 model.pkl
 model_v6.pkl
+```
 
 This enables comparison between model generations and makes it possible to reproduce or revert to earlier experiments.
+
 The model files are small enough to remain inside the repository rather than requiring external model storage.
-10. Real-Time Inference
+
+---
+
+### 10. Real-Time Inference
+
 The inference pipeline follows approximately:
+
+```python
 while webcam_is_running:
 
     frame = capture_frame()
@@ -192,35 +292,63 @@ while webcam_is_running:
     meme = gesture_to_meme(prediction)
 
     display(frame, meme)
+```
 
 The classifier operates on the engineered landmark representation rather than directly on the original image.
-11. Model ↔ Feature Compatibility
+
+---
+
+### 11. Model ↔ Feature Compatibility
+
 One of the main engineering concerns in the project is maintaining compatibility between:
+
+```text
 Feature Generator
         ↕
 Feature Schema
         ↕
 Trained Model
+```
 
 A model trained on one feature representation cannot safely consume an incompatible representation during inference.
+
 For this reason, the repository includes explicit feature-schema and smoke-check tooling.
-12. Validation & Smoke Testing
+
+---
+
+### 12. Validation & Smoke Testing
+
 The repository contains:
+
+```text
 smoke_checks.py
+```
 
 for lightweight validation of the application pipeline.
+
 The purpose is to catch issues such as:
+
 - Missing model artifacts
 - Invalid feature dimensions
 - Incompatible inputs
 - Missing dependencies
 - Broken project components
+
 before running the full real-time application.
-13. Benchmarking
+
+---
+
+### 13. Benchmarking
+
 Performance-related experimentation is handled through:
+
+```text
 benchmark.py
+```
 
 This separates different aspects of system evaluation:
+
+```text
 Correctness
     ↓
 Smoke Tests
@@ -232,40 +360,69 @@ Validation Metrics
 Runtime Performance
     ↓
 Benchmarking
+```
 
 A model can have high validation accuracy while still being unsuitable for real-time inference if the processing pipeline introduces excessive latency.
-14. Model & Runtime Artifacts
+
+---
+
+### 14. Model & Runtime Artifacts
+
 The repository contains the trained classifier models:
+
+```text
 model.pkl
 model_v6.pkl
+```
 
 and MediaPipe task models:
+
+```text
 models/
 ├── face_landmarker.task
 └── hand_landmarker.task
+```
 
 These artifacts allow the application to run without requiring the user to retrain the classifier from scratch.
-Technology Stack
-Computer Vision
+
+---
+
+# Technology Stack
+
+## Computer Vision
+
 - OpenCV
 - MediaPipe
 - MediaPipe Face Landmarker
 - MediaPipe Hand Landmarker
-Machine Learning
+
+## Machine Learning
+
 - scikit-learn
 - NumPy
 - SciPy
-Data Processing
+
+## Data Processing
+
 - Python
 - CSV-based dataset pipeline
 - Custom feature engineering
-Model Persistence
+
+## Model Persistence
+
 - Python Pickle
-Development
+
+## Development
+
 - Git
 - GitHub
 - Python virtual environments
-Repository Architecture
+
+---
+
+# Repository Architecture
+
+```text
 MemeVision/
 │
 ├── models/
@@ -307,71 +464,143 @@ MemeVision/
 ├── AUDIT.md
 ├── .gitignore
 └── README.md
+```
 
-Installation
+---
+
+# Installation
+
 Clone the repository:
+
+```bash
 git clone https://github.com/17Zoras/MemeVision.git
 cd MemeVision
+```
 
 Create a virtual environment:
+
+```bash
 python -m venv .venv
+```
 
 Activate it on Windows:
+
+```powershell
 .venv\Scripts\activate
+```
 
 Install dependencies:
-pip install -r requirements.txt
 
-Running the Application
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+# Running the Application
+
 Start the real-time application:
+
+```bash
 python main.py
+```
 
 The application requires:
+
 - A working webcam
 - MediaPipe task models
 - A trained classifier
 - Compatible feature extraction code
-Training From Scratch
+
+---
+
+# Training From Scratch
+
 To reproduce the machine-learning pipeline:
-1. Collect samples
+
+### 1. Collect samples
+
+```bash
 python collect.py
+```
 
-2. Inspect the dataset
+### 2. Inspect the dataset
+
+```bash
 python dataset_stats.py
+```
 
-3. Prepare the dataset
+### 3. Prepare the dataset
+
+```bash
 python prepare_v6.py
+```
 
-4. Train the model
+### 4. Train the model
+
+```bash
 python train_v6.py
+```
 
 The resulting model can then be used by the inference pipeline.
-Dataset
+
+---
+
+# Dataset
+
 The raw training dataset is intentionally not included in the repository.
+
 The dataset contains webcam-derived samples for the project's gesture classes.
+
 Keeping the raw dataset outside Git prevents the repository from becoming unnecessarily large while retaining the complete collection and processing pipeline.
+
 Dataset collection is handled through:
+
+```text
 collect.py
+```
 
 and dataset preparation is handled through the associated preparation scripts.
-Dataset Inspection
+
+---
+
+# Dataset Inspection
+
 Run:
+
+```bash
 python dataset_stats.py
+```
 
 This can be used to inspect:
+
 - Class distribution
 - Dataset structure
 - Feature consistency
 - Sample counts
 - Invalid or incomplete samples
-Validation
+
+---
+
+# Validation
+
 Run the project's smoke checks with:
+
+```bash
 python smoke_checks.py
+```
 
 These checks provide a lightweight way to verify that the core components of the pipeline remain compatible.
-Engineering Challenges
-Feature Consistency
+
+---
+
+# Engineering Challenges
+
+## Feature Consistency
+
 The same feature representation must be maintained across:
+
+```text
 Dataset Creation
        ↓
 Feature Extraction
@@ -381,18 +610,30 @@ Training
 Model Serialization
        ↓
 Inference
+```
 
 Any mismatch can invalidate model predictions.
-Dataset Quality
+
+---
+
+## Dataset Quality
+
 Gesture recognition performance depends heavily on:
+
 - Sample distribution
 - Gesture consistency
 - Camera angle
 - Lighting
 - Background
 - User variation
-Real-Time Constraints
+
+---
+
+## Real-Time Constraints
+
 The system continuously performs:
+
+```text
 Frame Capture
       +
 Landmark Detection
@@ -402,24 +643,38 @@ Feature Extraction
 Model Inference
       +
 Meme Rendering
+```
 
 The entire pipeline therefore has to operate within the time constraints of an interactive webcam application.
-Environment Compatibility
+
+---
+
+## Environment Compatibility
+
 Computer-vision and scientific Python packages frequently contain native binaries and platform-specific dependencies.
+
 This makes dependency versions, virtual environments, and runtime compatibility an important part of the development process.
-Current Results
-Metric	Result
-Gesture Classes	5
-Latest Recorded Validation Accuracy	97.79%
-Classifier Input	Landmark-derived features
-Inference	Real-time
-Face Processing	MediaPipe
-Hand Processing	MediaPipe
-Model Persistence	Pickle
 
+---
 
-Future Work
+# Current Results
+
+| Metric | Result |
+|---|---:|
+| Gesture Classes | 5 |
+| Latest Recorded Validation Accuracy | **97.79%** |
+| Classifier Input | Landmark-derived features |
+| Inference | Real-time |
+| Face Processing | MediaPipe |
+| Hand Processing | MediaPipe |
+| Model Persistence | Pickle |
+
+---
+
+# Future Work
+
 Potential improvements include:
+
 - Temporal gesture modeling
 - Sliding-window feature sequences
 - Gesture smoothing
@@ -434,8 +689,12 @@ Potential improvements include:
 - Automatic meme ranking
 - More gesture classes
 - Larger and more diverse datasets
+
 A particularly interesting direction is temporal modeling.
+
 The current system primarily operates on a spatial representation:
+
+```text
 Single Frame
     ↓
 Landmarks
@@ -443,8 +702,11 @@ Landmarks
 Feature Vector
     ↓
 Classifier
+```
 
 A future version could model gestures as sequences:
+
+```text
 Frame Sequence
       ↓
 Landmark Sequence
@@ -454,13 +716,20 @@ Temporal Feature Extraction
 Sequence Model
       ↓
 Gesture Prediction
+```
 
 This could allow the system to recognize motion-based gestures rather than relying primarily on a single-frame pose.
-Project Motivation
+
+---
+
+# Project Motivation
+
 MemeVision started as a simple experiment:
-Can a webcam understand what reaction I'm making and automatically choose the meme for it?
+
+> **Can a webcam understand what reaction I'm making and automatically choose the meme for it?**
 
 The project evolved into a practical exploration of:
+
 - Computer vision
 - Landmark-based representation
 - Feature engineering
@@ -471,14 +740,25 @@ The project evolved into a practical exploration of:
 - Real-time inference
 - Runtime performance
 - ML pipeline reproducibility
+
 The meme layer is the interface.
+
 The underlying engineering problem is:
-Can structured human pose and facial information be converted into a compact numerical representation that is reliable enough for real-time classification?
+
+> **Can structured human pose and facial information be converted into a compact numerical representation that is reliable enough for real-time classification?**
 
 MemeVision is an exploration of that problem.
-Author
-17Zoras
+
+---
+
+# Author
+
+**17Zoras**
+
 GitHub: https://github.com/17Zoras
-License
+
+---
+
+# License
+
 No explicit open-source license is currently provided.
-```
